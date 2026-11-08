@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">口头禅哨兵</string>
+    <string name="channel_monitor">监听状态</string>
+    <string name="channel_alert">口头禅提醒</string>
+</resources>
