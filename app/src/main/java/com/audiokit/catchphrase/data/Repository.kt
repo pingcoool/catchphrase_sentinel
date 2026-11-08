@@ -2,7 +2,13 @@ package com.audiokit.catchphrase.data
 
 import android.content.Context
 import com.audiokit.catchphrase.util.TimeUtils
+import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.flatMapLatest
+import kotlinx.coroutines.flow.flow
+import kotlinx.coroutines.flow.map
 import java.io.File
 
 class Repository(private val db: AppDatabase, private val context: Context) {
@@ -13,14 +19,33 @@ class Repository(private val db: AppDatabase, private val context: Context) {
 
     fun observePhrases(): Flow<List<PhraseEntity>> = phraseDao.observeAll()
 
+    /**
+     * 当前自然日的起止时间。每天零点重新计算，
+     * 避免跨天后仍然查询前一天的时间段。
+     */
+    private fun todayRange(): Flow<Pair<Long, Long>> = flow {
+        while (true) {
+            emit(TimeUtils.todayStart() to TimeUtils.todayEnd())
+            delay((TimeUtils.todayEnd() - System.currentTimeMillis()).coerceAtLeast(1_000L))
+        }
+    }
+
+    @OptIn(ExperimentalCoroutinesApi::class)
     fun observeTodayCount(): Flow<Int> =
-        detectionDao.observeCountBetween(TimeUtils.todayStart(), TimeUtils.todayEnd())
+        todayRange().flatMapLatest { (start, end) ->
+            detectionDao.observeCountBetween(start, end)
+        }
 
+    @OptIn(ExperimentalCoroutinesApi::class)
     fun observeTodayCounts(): Flow<List<PhraseCount>> =
-        detectionDao.observePhraseCounts(TimeUtils.todayStart(), TimeUtils.todayEnd())
+        todayRange().flatMapLatest { (start, end) ->
+            detectionDao.observePhraseCounts(start, end)
+        }
 
+    @OptIn(ExperimentalCoroutinesApi::class)
     fun observeWeekCounts(): Flow<List<DailyCount>> =
-        detectionDao.observeDailyCounts(TimeUtils.weekStart())
+        todayRange().map { TimeUtils.weekStart() }.distinctUntilChanged()
+            .flatMapLatest { start -> detectionDao.observeDailyCounts(start) }
 
     fun observeRecent(limit: Int): Flow<List<DetectionEntity>> = detectionDao.observeRecent(limit)
 

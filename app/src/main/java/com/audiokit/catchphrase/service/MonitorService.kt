@@ -152,6 +152,13 @@ class MonitorService : Service() {
                         matcher.setPhrases(list.filter { it.enabled })
                     }
                 }
+                launch {
+                    // 计数以数据库为准，跨零点后会自动切换到新的一天
+                    repository.observeTodayCount().collect { count ->
+                        todayCount = count
+                        updateNotification()
+                    }
+                }
 
                 startCapture()
                 updateNotification()
@@ -215,8 +222,6 @@ class MonitorService : Service() {
         scope.launch {
             runCatching {
                 repository.addDetection(match.phraseId, match.phraseText, timestamp, confidence, clipPath)
-                todayCount += 1
-                updateNotification()
             }
         }
         if (alert) maybeAlert(match, timestamp)
