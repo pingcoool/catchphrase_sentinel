@@ -12,3 +12,4 @@
 *.apk
 *.aab
 app/src/main/assets/*.zip
+app/src/main/assets/*.part
